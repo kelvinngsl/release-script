@@ -1,0 +1,60 @@
+#!/usr/bin/env sh
+
+set -e # exit immediately when a command fails.
+
+# TOCHANGE: Change the <PARTNER_NAME> depending on your use case
+PARTNER_NAME="$1"
+
+read -p "You're going to create new '$PARTNER_NAME' release. Are you sure? (Y/n): " -r
+echo    #  move to a new line
+
+# Prompter
+if [[ ! $REPLY =~ ^[Yy]$ ]]
+then
+    exit 1
+fi
+
+git checkout master
+git pull
+git fetch --tags
+
+# TOCHANGE: This previous tag is highly customizable and dependent on your use case
+# Retrieve previous tag and IF clause to handle first release case & preventing exiting of script
+if [[ $(git tag --sort=creatordate | grep "^$PARTNER_NAME-" | tail -n 1) != '' ]]
+then
+    previous_tag=$(git tag --sort=creatordate | grep "^$PARTNER_NAME-" | tail -n 1)
+else
+    previous_tag='master'
+fi
+
+# Getting the PRs done since previous tag and using regexp to match string
+prs=$(git log $previous_tag..master --merges --pretty="- %b | %s" | grep -o '.\+#[0-9]\+' | cat)
+
+# Removing string that is not needed
+prs=${prs//' | Merge pull request'/}
+
+# This is comment to let developer know how to edit the release_note
+comment="# Uncomment the line below and insert header. Lines starting with hash (#) will be ignored."
+title="# YOUR TITLE"
+release_note="$comment
+$title
+$prs
+"
+
+# TOCHANGE: This generated release_tag is highly customizable and dependent on your use case
+# Create new annotate tag and push it
+release_tag="$PARTNER_NAME-$(date '+%Y-%m-%d')"
+git tag -a $release_tag -e -m "$release_note"
+git push origin $release_tag
+
+# This is to retrieve the message from the annotate tag
+body=$(git tag -l --format='%(contents)' $release_tag)
+
+# TOCHANGE: Change the <ORGANIZATION> & <REPOSITORY_NAME> depending on your use case
+# Hub Api to Create a Release
+hub api repos/<ORGANIZATION>/<REPOSITORY_NAME>/releases --field "tag_name=$release_tag" \
+--field "name=<REPOSITORY NAME> - $release_tag" \
+--raw-field 'target_commitish=master' \
+--field "body=$body" \
+--field 'prerelease=false' \
+--field 'draft=false'
