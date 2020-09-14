@@ -44,7 +44,7 @@ bin/release # simple execution
 ## Built With
 
 * Bash
-* [Hub API] (https://hub.github.com/hub-api.1.html)
+* [Hub API](https://hub.github.com/hub-api.1.html)
 
 
 ## Authors
